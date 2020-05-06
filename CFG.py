@@ -5,25 +5,15 @@ import sys
 
 from typing import Set, Dict, List, Callable, Iterable
 
-# The maximum amount of words to generate from the CFG
-INTERVAL = 10000
 
-MAX_WORD_LENGTH_PLUS_ONE = 7
-
-MAX_WORDS = 2 ** MAX_WORD_LENGTH_PLUS_ONE - 1
-import threading
-
-dots = 0
-block = False
+# Change this to a higher number if you want to be more sure. Time will rise exponentialy. This is in practice
+# The Max word length plus one
+SEARCH_DEPTH = 7
 
 
-def animation():
-    if not block:
-        global dots
-        print(f"workisng{'.' * dots}{' ' * (3 - dots)}", end='\r')
-        dots += 1
-        dots %= 3
-
+LINE_FEED_BUFFER_SIZE = 25
+SIGMA_STAR_WORD_AMOUNT = 2 ** SEARCH_DEPTH - 1
+CFG_WORD_AMOUNT = 2 * SIGMA_STAR_WORD_AMOUNT
 
 class CFG(object):
     def __init__(self, variables: Set[str], alphabet: Set[str], transitions: Dict[str, List[str]], start: str):
@@ -84,9 +74,6 @@ class CFG(object):
         return {v for v in word if self.is_variable(v)}
 
     def free_search(self):
-        working = threading.Timer(0.25, animation)
-        working.start()
-
         # maintain priority queue for BFS-like traversal
         # element[0] = priority, element[1][0] = word, element[1][1] = path to word
         to_traverse = PriorityQueue()
@@ -94,7 +81,7 @@ class CFG(object):
         to_traverse_set = {self._start}
 
         to_traverse.put((0, (self._start, list())))
-        while to_traverse.qsize() > 0 and len(self.language) < 2*MAX_WORDS:
+        while to_traverse.qsize() > 0 and len(self.language) < CFG_WORD_AMOUNT:
             word, path = to_traverse.get()[1]
             if self.is_terminal(word) and word not in self.language:
                 self.language[word] = tuple(path)
@@ -111,8 +98,6 @@ class CFG(object):
                             if substituted not in to_traverse_set:
                                 to_traverse_set.add(substituted)
                                 to_traverse.put((len(substituted), (substituted, new_path)))
-        global block
-        block = True
 
     def is_valid_substitution(self, transition: str):
         return all(self.is_terminal(l) or self.is_variable(l) for l in transition)
@@ -136,7 +121,7 @@ def grammar_check(is_in_language: Callable[[str], bool], grammar: CFG):
     else:
         prompt = f"all {len(cfg_language)} words in your cfg's language are legal. Would you like to see the paths to them? y/n?"
         show_to_user(prompt, cfg_language, grammar)
-    sigma_star = [''.join(i) for j in range(MAX_WORD_LENGTH_PLUS_ONE) for i in itertools.product("10", repeat=j)]
+    sigma_star = [''.join(i) for j in range(SEARCH_DEPTH) for i in itertools.product("10", repeat=j)]
     actual_language = [i for i in sigma_star if is_in_language(i)]
 
     difference = set(actual_language) - set(cfg_language)
@@ -146,7 +131,7 @@ def grammar_check(is_in_language: Callable[[str], bool], grammar: CFG):
             f"Out of a total of {len(actual_language)} words your language missed the following {len(difference)} words:\n")
         print(list(sorted(difference, key=lambda i: len(i))))
     else:
-        print(f"Your language didn't miss any of the first {MAX_WORDS} words")
+        print(f"Your language didn't miss any of the first {SIGMA_STAR_WORD_AMOUNT} words")
     print("Well Done, you succeeded!") if success else print("Try again.")
 
 
@@ -155,7 +140,7 @@ def show_to_user(prompt, word_list: List[str], grammar: CFG):
     if answer in ["Y", 'y']:
         for i, word in enumerate(word_list):
             print(f"{word}, path to word: {'->'.join(grammar.language[word])}->{word}")
-            if i % 50 == 0 and i >= 50:
+            if i % LINE_FEED_BUFFER_SIZE == 0 and i >= LINE_FEED_BUFFER_SIZE:
                 answer_2 = input("print more? y/n")
                 if answer_2 not in ["Y", "y"]:
                     return
