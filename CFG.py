@@ -1,11 +1,13 @@
 import copy
+import itertools
 import sys
 import time
 from typing import Set, Dict, List, Callable, Iterable
 
 
 # The maximum amount of words to generate from the CFG
-MAX_WORDS = 1000
+MAX_LENGTH = 12
+MAX_WORDS = 2**MAX_LENGTH-1
 
 
 class CFG(object):
@@ -116,6 +118,16 @@ def grammar_check(is_in_language: Callable[[str], bool], grammar: CFG):
     else:
         prompt = "all words in your cfg's language are legal. Would you like to see the paths to them? y/n?"
         show_to_user(prompt, cfg_language, grammar)
+    sigma_star = [''.join(i) for j in range(MAX_LENGTH) for i in itertools.product("10", repeat=j)]
+    actual_language = [i for i in sigma_star if is_in_language(i)]
+
+    difference = set(actual_language) - set(cfg_language)
+    if len(difference):
+        print(f"Out of a total of {len(actual_language)} words your language missed the following {len(difference)} words:\n")
+        print(list(sorted(difference, key=lambda i: len(i))))
+    else:
+        print(f"Your language didn't miss any of the first {MAX_WORDS} words")
+        print("Well Done")
 
 
 def show_to_user(prompt, word_list: List[str], grammar: CFG):
@@ -149,6 +161,9 @@ if __name__ == "__main__":
         """
         return word.count('0') == word.count('1')
 
+
+    def is_in_lang_c(word):
+        return all(word[:i].count('0') >= word[:i].count('1') for i in range(len(word)))
 
     # this is V (the variables)
     a_variables = {'S', 'R'}
