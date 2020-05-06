@@ -5,7 +5,8 @@ import time
 from typing import Set, Dict, List, Callable, Iterable
 
 # The maximum amount of words to generate from the CFG
-MAX_LENGTH = 12
+INTERVAL = 10000
+MAX_LENGTH = 7
 MAX_WORDS = 2 ** MAX_LENGTH - 1
 
 
@@ -14,7 +15,12 @@ class CFG(object):
 
         self._variables = variables
         self._alphabet = alphabet
-
+        diff = variables - set(transitions.keys())
+        try:
+            assert len(diff) == 0
+        except AssertionError:
+            print(f"No transition functions defined for {diff}")
+            exit(1)
         for variable, substitution in transitions.items():
             try:
                 assert (self.is_variable(variable))
@@ -66,6 +72,7 @@ class CFG(object):
         to_traverse = [(self._start, list())]
         to_traverse_keys = {self._start}
         i = 0
+
         while i < len(to_traverse) and len(self.language) < MAX_WORDS:
             word, path = to_traverse[i]
             if self.is_terminal(word):
@@ -86,6 +93,11 @@ class CFG(object):
                                 to_traverse_keys.add(substituted)
                                 to_traverse.append((substituted, new_path))
             i += 1
+            if i % INTERVAL == 0:
+                j = int(i / INTERVAL)
+                k = j % 4
+                print(f"working{'.'*k}{' '*(3-k)}", end='\r')
+
 
     def is_valid_substitution(self, transition: str):
         return all(self.is_terminal(l) or self.is_variable(l) for l in transition)
@@ -98,26 +110,29 @@ class CFG(object):
 
 
 def grammar_check(is_in_language: Callable[[str], bool], grammar: CFG):
+    success = True
     cfg_language = list(sorted((grammar.language.keys()), key=lambda i: len(i)))
     bad_words = [i for i in cfg_language if not is_in_language(i)]
     if len(bad_words) > 0:
+        success = False
         prompt = f"{len(bad_words)} words were in the cfg even though they aren't in the language.\n" \
                  f"Would you like to see the paths to them? y/n?"
         show_to_user(prompt, bad_words, grammar)
     else:
-        prompt = "all words in your cfg's language are legal. Would you like to see the paths to them? y/n?"
+        prompt = f"all {len(cfg_language)} words in your cfg's language are legal. Would you like to see the paths to them? y/n?"
         show_to_user(prompt, cfg_language, grammar)
     sigma_star = [''.join(i) for j in range(MAX_LENGTH) for i in itertools.product("10", repeat=j)]
     actual_language = [i for i in sigma_star if is_in_language(i)]
 
     difference = set(actual_language) - set(cfg_language)
     if len(difference):
+        success = False
         print(
             f"Out of a total of {len(actual_language)} words your language missed the following {len(difference)} words:\n")
         print(list(sorted(difference, key=lambda i: len(i))))
     else:
         print(f"Your language didn't miss any of the first {MAX_WORDS} words")
-        print("Well Done")
+    print("Well Done, you succeeded!") if success else print("Try again.")
 
 
 def show_to_user(prompt, word_list: List[str], grammar: CFG):
