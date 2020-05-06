@@ -4,10 +4,9 @@ import sys
 import time
 from typing import Set, Dict, List, Callable, Iterable
 
-
 # The maximum amount of words to generate from the CFG
 MAX_LENGTH = 12
-MAX_WORDS = 2**MAX_LENGTH-1
+MAX_WORDS = 2 ** MAX_LENGTH - 1
 
 
 class CFG(object):
@@ -18,12 +17,12 @@ class CFG(object):
 
         for variable, substitution in transitions.items():
             try:
-                assert(self.is_variable(variable))
+                assert (self.is_variable(variable))
             except AssertionError:
                 print(f"Unrecognized variable '{variable}' in Transition function")
                 exit(1)
             try:
-                assert(all(self.is_valid_substitution(s) for s in substitution))
+                assert (all(self.is_valid_substitution(s) for s in substitution))
             except AssertionError:
                 print(f"Invalid substitution: '{variable}: {substitution}'")
                 exit(1)
@@ -43,7 +42,6 @@ class CFG(object):
         self.language = dict()
         self.free_search()
 
-
     def will_not_terminate(self, transitions: Dict[str, List[str]]):
         terminable_variables = set()
         done = False
@@ -51,10 +49,9 @@ class CFG(object):
             done = True
             temp = copy.deepcopy(terminable_variables)
             for var in set(transitions.keys()) - terminable_variables:
-                #Check that one of the substitutions is a terminal, or that all of its variables are terminable
+                # Check that one of the substitutions is a terminal, or that all of its variables are terminable
                 if any(self.is_terminal(sub) for sub in transitions[var]) or \
-                        any(all(v in terminable_variables for v in self.variables_contained_in(w))
-                            for w in transitions[var]):
+                        any(all(v in terminable_variables for v in self.variables_of(w)) for w in transitions[var]):
                     done = False
                     temp.add(var)
             terminable_variables = temp
@@ -62,10 +59,8 @@ class CFG(object):
             return set(transitions.keys()) - terminable_variables
         return False
 
-
-    def variables_contained_in(self, word: str) -> Set[str]:
+    def variables_of(self, word: str) -> Set[str]:
         return {v for v in word if self.is_variable(v)}
-
 
     def free_search(self):
         to_traverse = [(self._start, list())]
@@ -92,12 +87,6 @@ class CFG(object):
                                 to_traverse.append((substituted, new_path))
             i += 1
 
-    def shortest_substitution(self, variable: str):
-        return min(len(sub) for sub in self._transitions[variable] if self.is_terminal(sub))
-
-    def var_count(self, word: str):
-        return sum(1 for letter in word if letter in self._variables)
-
     def is_valid_substitution(self, transition: str):
         return all(self.is_terminal(l) or self.is_variable(l) for l in transition)
 
@@ -123,7 +112,8 @@ def grammar_check(is_in_language: Callable[[str], bool], grammar: CFG):
 
     difference = set(actual_language) - set(cfg_language)
     if len(difference):
-        print(f"Out of a total of {len(actual_language)} words your language missed the following {len(difference)} words:\n")
+        print(
+            f"Out of a total of {len(actual_language)} words your language missed the following {len(difference)} words:\n")
         print(list(sorted(difference, key=lambda i: len(i))))
     else:
         print(f"Your language didn't miss any of the first {MAX_WORDS} words")
@@ -141,11 +131,10 @@ def show_to_user(prompt, word_list: List[str], grammar: CFG):
                     return
 
 
-
 if __name__ == "__main__":
     # Usage Example
 
-    #The following functions determine whether a word is in a given language.
+    # The following functions determine whether a word is in a given language.
     def is_in_lang_a(word: str):
         """
         :param word:
@@ -165,6 +154,7 @@ if __name__ == "__main__":
     def is_in_lang_c(word):
         return all(word[:i].count('0') >= word[:i].count('1') for i in range(len(word)))
 
+
     # this is V (the variables)
     a_variables = {'S', 'R'}
     b_variables = {'S'}
@@ -178,10 +168,9 @@ if __name__ == "__main__":
         'R': ['RRR1', 'R0S0', 'R1', 'R0S'],
     }
     b_transitions = {
-        #empty string is the empty word epsilon
+        # empty string is the empty word epsilon
         'S': ['SS', 'SSS', '', ]
     }
-
 
     # this is the constructor for the CFG
     a_cfg = CFG(a_variables, one_and_zero, a_transitions, 'S')
@@ -190,4 +179,3 @@ if __name__ == "__main__":
     # this is the program
     grammar_check(is_in_language=is_in_lang_a, grammar=a_cfg)
     grammar_check(is_in_language=is_in_lang_b, grammar=b_cfg)
-
