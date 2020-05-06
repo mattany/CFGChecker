@@ -110,7 +110,6 @@ def grammar_check(is_in_language: Callable[[str], bool], grammar: CFG):
     cfg_language = list(sorted((grammar.language.keys()), key=lambda i: len(i)))
     bad_words = [i for i in cfg_language if not is_in_language(i)]
     if len(bad_words) > 0:
-        print(bad_words)
         prompt = f"{len(bad_words)} words were in the cfg even though they aren't in the language.\n" \
                  f"Would you like to see the paths to them? y/n?"
         show_to_user(prompt, bad_words, grammar)
