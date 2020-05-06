@@ -1,4 +1,4 @@
-# CFG checker
+# CFG checker (buggy right now, don't use yet)
 This is a python implementation of Context Ffree Grammar that cross references a given CFG with a given language.
 
 ## Usage instructions:
