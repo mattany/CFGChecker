@@ -7,8 +7,10 @@ from typing import Set, Dict, List, Callable, Iterable
 
 # The maximum amount of words to generate from the CFG
 INTERVAL = 10000
-MAX_LENGTH = 7
-MAX_WORDS = 2 ** MAX_LENGTH - 1
+
+MAX_WORD_LENGTH_PLUS_ONE = 7
+
+MAX_WORDS = 2 ** MAX_WORD_LENGTH_PLUS_ONE - 1
 import threading
 
 dots = 0
@@ -18,7 +20,7 @@ block = False
 def animation():
     if not block:
         global dots
-        print(f"working{'.' * dots}{' ' * (3 - dots)}", end='\r')
+        print(f"workisng{'.' * dots}{' ' * (3 - dots)}", end='\r')
         dots += 1
         dots %= 3
 
@@ -92,7 +94,7 @@ class CFG(object):
         to_traverse_set = {self._start}
 
         to_traverse.put((0, (self._start, list())))
-        while to_traverse.qsize() > 0 and len(self.language) < MAX_WORDS:
+        while to_traverse.qsize() > 0 and len(self.language) < 2*MAX_WORDS:
             word, path = to_traverse.get()[1]
             if self.is_terminal(word) and word not in self.language:
                 self.language[word] = tuple(path)
@@ -134,7 +136,7 @@ def grammar_check(is_in_language: Callable[[str], bool], grammar: CFG):
     else:
         prompt = f"all {len(cfg_language)} words in your cfg's language are legal. Would you like to see the paths to them? y/n?"
         show_to_user(prompt, cfg_language, grammar)
-    sigma_star = [''.join(i) for j in range(MAX_LENGTH) for i in itertools.product("10", repeat=j)]
+    sigma_star = [''.join(i) for j in range(MAX_WORD_LENGTH_PLUS_ONE) for i in itertools.product("10", repeat=j)]
     actual_language = [i for i in sigma_star if is_in_language(i)]
 
     difference = set(actual_language) - set(cfg_language)
