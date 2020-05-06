@@ -1,13 +1,26 @@
 import copy
 import itertools
+from queue import PriorityQueue
 import sys
-import time
+
 from typing import Set, Dict, List, Callable, Iterable
 
 # The maximum amount of words to generate from the CFG
 INTERVAL = 10000
 MAX_LENGTH = 7
 MAX_WORDS = 2 ** MAX_LENGTH - 1
+import threading
+
+dots = 0
+block = False
+
+
+def animation():
+    if not block:
+        global dots
+        print(f"working{'.' * dots}{' ' * (3 - dots)}", end='\r')
+        dots += 1
+        dots %= 3
 
 
 class CFG(object):
@@ -69,16 +82,20 @@ class CFG(object):
         return {v for v in word if self.is_variable(v)}
 
     def free_search(self):
-        to_traverse = [(self._start, list())]
-        to_traverse_keys = {self._start}
-        i = 0
+        working = threading.Timer(0.25, animation)
+        working.start()
 
-        while i < len(to_traverse) and len(self.language) < MAX_WORDS:
-            word, path = to_traverse[i]
-            if self.is_terminal(word):
-                # add the path to the dictionary
-                if word not in self.language:
-                    self.language[word] = tuple(path)
+        # maintain priority queue for BFS-like traversal
+        # element[0] = priority, element[1][0] = word, element[1][1] = path to word
+        to_traverse = PriorityQueue()
+        # maintain set for fast access
+        to_traverse_set = {self._start}
+
+        to_traverse.put((0, (self._start, list())))
+        while to_traverse.qsize() > 0 and len(self.language) < MAX_WORDS:
+            word, path = to_traverse.get()[1]
+            if self.is_terminal(word) and word not in self.language:
+                self.language[word] = tuple(path)
             else:
                 # There are variables in the word
                 for letter in word:
@@ -89,15 +106,11 @@ class CFG(object):
                         for substitution in self._transitions[variable]:
                             substituted = word.replace(variable, substitution, 1)
                             # Add to traversal list
-                            if substituted not in to_traverse_keys:
-                                to_traverse_keys.add(substituted)
-                                to_traverse.append((substituted, new_path))
-            i += 1
-            if i % INTERVAL == 0:
-                j = int(i / INTERVAL)
-                k = j % 4
-                print(f"working{'.'*k}{' '*(3-k)}", end='\r')
-
+                            if substituted not in to_traverse_set:
+                                to_traverse_set.add(substituted)
+                                to_traverse.put((len(substituted), (substituted, new_path)))
+        global block
+        block = True
 
     def is_valid_substitution(self, transition: str):
         return all(self.is_terminal(l) or self.is_variable(l) for l in transition)
