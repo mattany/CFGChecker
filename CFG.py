@@ -13,6 +13,8 @@ SEARCH_DEPTH = 12
 # It will check more words just in case.
 # Timeout value in seconds
 TIMEOUT = 5
+
+
 LINE_FEED_BUFFER_SIZE = 25
 
 
