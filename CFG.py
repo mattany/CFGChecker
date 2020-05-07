@@ -7,12 +7,12 @@ from typing import Set, Dict, List, Callable, Iterable
 
 # Change this to a higher number if you want to be more sure. Time will rise exponentially in relation to this variable. This is in practice
 # The Max word length plus one
-SEARCH_DEPTH = 12
+SEARCH_DEPTH = 10
 
 # Change this to higher if you think you have false negatives or if you greatly increase the search depth.
 # It will check more words just in case.
 # Timeout value in seconds
-TIMEOUT = 5
+TIMEOUT = 3
 
 
 LINE_FEED_BUFFER_SIZE = 25
@@ -162,33 +162,37 @@ def grammar_check(is_in_language: Callable[[str], bool], grammar: CFG):
     bad_words = [i for i in cfg_language if not is_in_language(i)]
     if len(bad_words) > 0:
         success = False
-        prompt = f"{len(bad_words)} words were in the cfg even though they aren't in the language.\n" \
-                 f"Would you like to see the paths to them? y/n?"
+        prompt = f"{len(bad_words)} words were in the cfg even though they aren't in the language.\n"
         show_to_user(prompt, bad_words, grammar)
     else:
-        prompt = f"all {len(cfg_language)} words in your cfg's language are legal. Would you like to see the paths to them? y/n?"
+        prompt = f"all {len(cfg_language)} words in your cfg's language are legal."
         show_to_user(prompt, cfg_language, grammar)
 
     difference = set(actual_language) - set(cfg_language)
     if len(difference):
         success = False
-        print(
-            f"Out of a total of {len(actual_language)} words your language missed the following {len(difference)} words:\n")
-        print(list(sorted(difference, key=lambda i: len(i))))
+        diff = list(sorted(difference, key=lambda i: len(i)))
+        print(f"Out of a total of {len(actual_language)} words your language missed {len(difference)} words:\n")
+        for i, word in enumerate(diff):
+            print(f"{word}  ", end="")
+            if i % LINE_FEED_BUFFER_SIZE == 0 and i >= LINE_FEED_BUFFER_SIZE:
+                answer_2 = input("print more? y/n")
+                if answer_2 not in ["Y", "y"]:
+                    break
+
     else:
         print(f"Your language didn't miss any of the first {len(actual_language)} words in L")
     print("Well Done, you succeeded!") if success else print("Try again.")
 
 
 def show_to_user(prompt, word_list: List[str], grammar: CFG):
-    answer = input(prompt)
-    if answer in ["Y", 'y']:
-        for i, word in enumerate(word_list):
-            print(f"{word}, path to word: {'->'.join(grammar.language[word])}->{word}")
-            if i % LINE_FEED_BUFFER_SIZE == 0 and i >= LINE_FEED_BUFFER_SIZE:
-                answer_2 = input("print more? y/n")
-                if answer_2 not in ["Y", "y"]:
-                    return
+    print(prompt)
+    for i, word in enumerate(word_list):
+        print(f"{word}, path to word: {'->'.join(grammar.language[word])}->{word}")
+        if i % LINE_FEED_BUFFER_SIZE == 0 and i >= LINE_FEED_BUFFER_SIZE:
+            answer_2 = input("print more? y/n")
+            if answer_2 not in ["Y", "y"]:
+                return
 
 
 if __name__ == "__main__":
@@ -212,7 +216,7 @@ if __name__ == "__main__":
 
 
     def is_in_lang_c(word):
-        return all(word[:i].count('0') >= word[:i].count('1') for i in range(len(word)))
+        return all(word[:i].count('0') >= word[:i].count('1') for i in range(len(word) + 1))
 
 
     # this is V (the variables)
