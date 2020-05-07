@@ -1,19 +1,57 @@
 import copy
 import itertools
 from queue import PriorityQueue
-import sys
-
+from threading import Thread
+import functools
 from typing import Set, Dict, List, Callable, Iterable
 
-
-# Change this to a higher number if you want to be more sure. Time will rise exponentialy. This is in practice
+# Change this to a higher number if you want to be more sure. Time will rise exponentially in relation to this variable. This is in practice
 # The Max word length plus one
-SEARCH_DEPTH = 7
+SEARCH_DEPTH = 12
 
-
+# Change this to higher if you think you have false negatives or if you greatly increase the search depth.
+# It will check more words just in case.
+# Timeout value in seconds
+TIMEOUT = 5
 LINE_FEED_BUFFER_SIZE = 25
-SIGMA_STAR_WORD_AMOUNT = 2 ** SEARCH_DEPTH - 1
-CFG_WORD_AMOUNT = 2 * SIGMA_STAR_WORD_AMOUNT
+
+
+def timeout(seconds_before_timeout):
+    """
+    Timeout wrapper function from stackoverflow by acushner
+    https://stackoverflow.com/questions/21827874/timeout-a-function-windows
+    :param seconds_before_timeout:
+    :return:
+    """
+
+    def deco(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            res = [Exception('function [%s] timeout [%s seconds] exceeded!' % (func.__name__, seconds_before_timeout))]
+
+            def newFunc():
+                try:
+                    res[0] = func(*args, **kwargs)
+                except Exception as e:
+                    res[0] = e
+
+            t = Thread(target=newFunc)
+            t.daemon = True
+            try:
+                t.start()
+                t.join(seconds_before_timeout)
+            except Exception as e:
+                print('error starting thread')
+                raise e
+            ret = res[0]
+            if isinstance(ret, BaseException):
+                raise ret
+            return ret
+
+        return wrapper
+
+    return deco
+
 
 class CFG(object):
     def __init__(self, variables: Set[str], alphabet: Set[str], transitions: Dict[str, List[str]], start: str):
@@ -51,7 +89,6 @@ class CFG(object):
             exit(1)
         self._start = start
         self.language = dict()
-        self.free_search()
 
     def will_not_terminate(self, transitions: Dict[str, List[str]]):
         terminable_variables = set()
@@ -73,7 +110,8 @@ class CFG(object):
     def variables_of(self, word: str) -> Set[str]:
         return {v for v in word if self.is_variable(v)}
 
-    def free_search(self):
+    @timeout(TIMEOUT)
+    def generate_n_words(self, n: int):
         # maintain priority queue for BFS-like traversal
         # element[0] = priority, element[1][0] = word, element[1][1] = path to word
         to_traverse = PriorityQueue()
@@ -81,9 +119,9 @@ class CFG(object):
         to_traverse_set = {self._start}
 
         to_traverse.put((0, (self._start, list())))
-        while to_traverse.qsize() > 0 and len(self.language) < CFG_WORD_AMOUNT:
+        while to_traverse.qsize() > 0 and len(self.language) < n:
             word, path = to_traverse.get()[1]
-            if self.is_terminal(word) and word not in self.language:
+            if self.is_terminal(word) and word not in self.language and len(word) < SEARCH_DEPTH:
                 self.language[word] = tuple(path)
             else:
                 # There are variables in the word
@@ -111,6 +149,13 @@ class CFG(object):
 
 def grammar_check(is_in_language: Callable[[str], bool], grammar: CFG):
     success = True
+    sigma_star = [''.join(i) for j in range(SEARCH_DEPTH) for i in itertools.product("10", repeat=j)]
+    actual_language = [i for i in sigma_star if is_in_language(i)]
+    try:
+        grammar.generate_n_words(len(actual_language))
+    except Exception:
+        print(
+            f"Timed out! Increase TIMEOUT if the following number of\nfound words is not identical between runs:\n {len(grammar.language)}")
     cfg_language = list(sorted((grammar.language.keys()), key=lambda i: len(i)))
     bad_words = [i for i in cfg_language if not is_in_language(i)]
     if len(bad_words) > 0:
@@ -121,8 +166,6 @@ def grammar_check(is_in_language: Callable[[str], bool], grammar: CFG):
     else:
         prompt = f"all {len(cfg_language)} words in your cfg's language are legal. Would you like to see the paths to them? y/n?"
         show_to_user(prompt, cfg_language, grammar)
-    sigma_star = [''.join(i) for j in range(SEARCH_DEPTH) for i in itertools.product("10", repeat=j)]
-    actual_language = [i for i in sigma_star if is_in_language(i)]
 
     difference = set(actual_language) - set(cfg_language)
     if len(difference):
@@ -131,7 +174,7 @@ def grammar_check(is_in_language: Callable[[str], bool], grammar: CFG):
             f"Out of a total of {len(actual_language)} words your language missed the following {len(difference)} words:\n")
         print(list(sorted(difference, key=lambda i: len(i))))
     else:
-        print(f"Your language didn't miss any of the first {SIGMA_STAR_WORD_AMOUNT} words")
+        print(f"Your language didn't miss any of the first {len(actual_language)} words in L")
     print("Well Done, you succeeded!") if success else print("Try again.")
 
 
