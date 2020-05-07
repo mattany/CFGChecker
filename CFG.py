@@ -151,13 +151,13 @@ class CFG(object):
 
 def grammar_check(is_in_language: Callable[[str], bool], grammar: CFG):
     success = True
-    sigma_star = [''.join(i) for j in range(SEARCH_DEPTH) for i in itertools.product("10", repeat=j)]
+    sigma_star = [''.join(i) for j in range(SEARCH_DEPTH) for i in itertools.product(grammar._alphabet, repeat=j)]
     actual_language = [i for i in sigma_star if is_in_language(i)]
     try:
         grammar.generate_n_words(len(actual_language))
     except Exception:
         print(
-            f"Timed out! Increase TIMEOUT if the following number of\nfound words is not identical between runs:\n {len(grammar.language)}")
+            f"Timed out!\nIncrease TIMEOUT if the following amount of found words is not identical between runs:\n {len(grammar.language)}")
     cfg_language = list(sorted((grammar.language.keys()), key=lambda i: len(i)))
     bad_words = [i for i in cfg_language if not is_in_language(i)]
     if len(bad_words) > 0:
